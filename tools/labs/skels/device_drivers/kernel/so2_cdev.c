@@ -139,6 +139,15 @@ static int so2_cdev_init(void)
 	int i;
 
 	/* TODO 1: register char device region for MY_MAJOR and NUM_MINORS starting at MY_MINOR */
+	err = register_chrdev_region(MKDEV(MY_MAJOR,
+		MY_MINOR),
+		NUM_MINORS,
+                "so2_driver");
+	if (err != 0) {
+		pr_info("Driver failed to registered\n");
+    		return err;
+	}
+	pr_info("Driver registered succesfully\n");
 
 	for (i = 0; i < NUM_MINORS; i++) {
 #ifdef EXTRA
@@ -163,6 +172,8 @@ static void so2_cdev_exit(void)
 	}
 
 	/* TODO 1: unregister char device region, for MY_MAJOR and NUM_MINORS starting at MY_MINOR */
+	unregister_chrdev_region(MKDEV(MY_MAJOR, MY_MINOR), NUM_MINORS);
+	pr_info("Driver unregistered succesfully\n");
 }
 
 module_init(so2_cdev_init);
