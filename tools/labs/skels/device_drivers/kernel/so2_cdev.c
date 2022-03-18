@@ -21,7 +21,7 @@ MODULE_LICENSE("GPL");
 
 #define LOG_LEVEL	KERN_INFO
 
-#define MY_MAJOR		42
+#define MY_MAJOR		3//42
 #define MY_MINOR		0
 #define NUM_MINORS		1
 #define MODULE_NAME		"so2_cdev"
@@ -142,7 +142,7 @@ static int so2_cdev_init(void)
 	err = register_chrdev_region(MKDEV(MY_MAJOR,
 		MY_MINOR),
 		NUM_MINORS,
-                "so2_driver");
+                MODULE_NAME);
 	if (err != 0) {
 		pr_info("Driver failed to registered\n");
     		return err;
