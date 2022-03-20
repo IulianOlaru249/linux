@@ -21,7 +21,7 @@ MODULE_LICENSE("GPL");
 
 #define LOG_LEVEL	KERN_INFO
 
-#define MY_MAJOR		3//42
+#define MY_MAJOR		42
 #define MY_MINOR		0
 #define NUM_MINORS		1
 #define MODULE_NAME		"so2_cdev"
@@ -35,9 +35,11 @@ MODULE_LICENSE("GPL");
 
 struct so2_device_data {
 	/* TODO 2: add cdev member */
+	struct cdev cdev;
 	/* TODO 4: add buffer with BUFSIZ elements */
 	/* TODO 7: extra members for home */
 	/* TODO 3: add atomic_t access variable to keep track if file is opened */
+	atomic_t file_monitor;
 };
 
 struct so2_device_data devs[NUM_MINORS];
@@ -47,15 +49,18 @@ static int so2_cdev_open(struct inode *inode, struct file *file)
 	struct so2_device_data *data;
 
 	/* TODO 2: print message when the device file is open. */
+	pr_info("Device is being opened\n");
 
 	/* TODO 3: inode->i_cdev contains our cdev struct, use container_of to obtain a pointer to so2_device_data */
-
+	data = container_of(inode->i_cdev, struct so2_device_data, cdev);
 	file->private_data = data;
 
 	/* TODO 3: return immediately if access is != 0, use atomic_cmpxchg */
+	if (atomic_cmpxchg(&data->file_monitor, 0, 1) != 0)
+		return -EBUSY;
 
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(10 * HZ);
+	//set_current_state(TASK_INTERRUPTIBLE);
+	//schedule_timeout(10 * HZ);
 
 	return 0;
 }
@@ -64,12 +69,14 @@ static int
 so2_cdev_release(struct inode *inode, struct file *file)
 {
 	/* TODO 2: print message when the device file is closed. */
+	pr_info("Device is being closed\n");
 
 #ifndef EXTRA
 	struct so2_device_data *data =
 		(struct so2_device_data *) file->private_data;
 
 	/* TODO 3: reset access variable to 0, use atomic_set */
+	atomic_set(&data->file_monitor, 0);
 #endif
 	return 0;
 }
@@ -128,6 +135,8 @@ so2_cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static const struct file_operations so2_fops = {
 	.owner = THIS_MODULE,
 /* TODO 2: add open and release functions */
+	.open = so2_cdev_open,
+	.release = so2_cdev_release,
 /* TODO 4: add read function */
 /* TODO 5: add write function */
 /* TODO 6: add ioctl function */
@@ -153,11 +162,15 @@ static int so2_cdev_init(void)
 #ifdef EXTRA
 		/* TODO 7: extra tasks, for home */
 #else
-		/*TODO 4: initialize buffer with MESSAGE string */
+		/* TODO 4: initialize buffer with MESSAGE string */
 #endif
 		/* TODO 7: extra tasks for home */
 		/* TODO 3: set access variable to 0, use atomic_set */
+		atomic_set(&devs[i].file_monitor, 0);
+		
 		/* TODO 2: init and add cdev to kernel core */
+        	cdev_init(&devs[i].cdev, &so2_fops);
+        	cdev_add(&devs[i].cdev, MKDEV(MY_MAJOR, i), 1);
 	}
 
 	return 0;
@@ -169,6 +182,7 @@ static void so2_cdev_exit(void)
 
 	for (i = 0; i < NUM_MINORS; i++) {
 		/* TODO 2: delete cdev from kernel core */
+		cdev_del(&devs[i].cdev);
 	}
 
 	/* TODO 1: unregister char device region, for MY_MAJOR and NUM_MINORS starting at MY_MINOR */
