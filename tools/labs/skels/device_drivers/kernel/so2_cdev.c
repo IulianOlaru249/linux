@@ -116,9 +116,21 @@ so2_cdev_write(struct file *file,
 {
 	struct so2_device_data *data =
 		(struct so2_device_data *) file->private_data;
+	size_t to_write;
+	int msg_size;
 
 
 	/* TODO 5: copy user_buffer to data->buffer, use copy_from_user */
+	msg_size = strlen(data->buf);
+	if (size - *offset < msg_size)
+		to_write = size - *offset;
+	else
+		to_write = size;
+
+	copy_from_user(data->buf + *offset, user_buffer, to_write);
+
+	*offset = *offset + to_write;
+
 	/* TODO 7: extra tasks for home */
 
 	return size;
@@ -148,8 +160,9 @@ static const struct file_operations so2_fops = {
 	.open = so2_cdev_open,
 	.release = so2_cdev_release,
 /* TODO 4: add read function */
-	.read = so2_cdev_read
+	.read = so2_cdev_read,
 /* TODO 5: add write function */
+	.write = so2_cdev_write
 /* TODO 6: add ioctl function */
 };
 
