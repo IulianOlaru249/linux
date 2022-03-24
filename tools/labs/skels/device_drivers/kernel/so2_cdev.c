@@ -26,7 +26,7 @@ MODULE_LICENSE("GPL");
 #define NUM_MINORS		1
 #define MODULE_NAME		"so2_cdev"
 #define MESSAGE			"hello\n"
-#define IOCTL_MESSAGE		"Hello ioctl"
+#define IOCTL_MESSAGE		"Hello ioctl\n"
 
 #ifndef BUFSIZ
 #define BUFSIZ		4096
@@ -146,6 +146,9 @@ so2_cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	/* TODO 6: if cmd = MY_IOCTL_PRINT, display IOCTL_MESSAGE */
+	case MY_IOCTL_PRINT:
+		pr_info("%s", IOCTL_MESSAGE);
+		break;
 	/* TODO 7: extra tasks, for home */
 	default:
 		ret = -EINVAL;
@@ -162,8 +165,9 @@ static const struct file_operations so2_fops = {
 /* TODO 4: add read function */
 	.read = so2_cdev_read,
 /* TODO 5: add write function */
-	.write = so2_cdev_write
+	.write = so2_cdev_write,
 /* TODO 6: add ioctl function */
+	.unlocked_ioctl = so2_cdev_ioctl
 };
 
 static int so2_cdev_init(void)
