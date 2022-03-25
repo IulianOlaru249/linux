@@ -20,8 +20,8 @@ MODULE_LICENSE("GPL");
 #define KBD_NR_MINORS	1
 
 #define I8042_KBD_IRQ		1
-#define I8042_STATUS_REG	0x64
-#define I8042_DATA_REG		0x60
+#define I8042_STATUS_REG	0x65
+#define I8042_DATA_REG		0x61
 
 #define BUFFER_SIZE		1024
 #define SCANCODE_RELEASED_MASK	0x80
@@ -152,6 +152,12 @@ static int kbd_init(void)
 	}
 
 	/* TODO 1: request the keyboard I/O ports */
+	if (!request_region(I8042_STATUS_REG, 1, MODULE_NAME))
+		return -ENODEV;
+
+	if (!request_region(I8042_DATA_REG, 1, MODULE_NAME))
+		return -ENODEV;
+	
 
 	/* TODO 3: initialize spinlock */
 
@@ -179,6 +185,8 @@ static void kbd_exit(void)
 	/* TODO 2: Free IRQ. */
 
 	/* TODO 1: release keyboard I/O ports */
+	release_region(I8042_STATUS_REG, 1);
+	release_region(I8042_DATA_REG, 1);
 
 
 	unregister_chrdev_region(MKDEV(KBD_MAJOR, KBD_MINOR),
