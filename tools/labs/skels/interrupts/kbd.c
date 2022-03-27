@@ -101,10 +101,23 @@ static inline u8 i8042_read_data(void)
 }
 
 /* TODO 2: implement interrupt handler */
+irqreturn_t my_handler(int irq_no, void *dev_id)
+{
+    	struct my_device_data *my_data = (struct my_device_data *) dev_id;
+	pr_info("GOT HERE!\n");
+
 	/* TODO 3: read the scancode */
 	/* TODO 3: interpret the scancode */
 	/* TODO 3: display information about the keystrokes */
 	/* TODO 3: store ASCII key to buffer */
+    	/* if interrupt is not for this device (shared interrupts) */
+        	/* return IRQ_NONE;*/
+
+    	/* clear interrupt-pending bit */
+    	/* read from device or write to device*/
+
+    return IRQ_HANDLED;
+}
 
 static int kbd_open(struct inode *inode, struct file *file)
 {
@@ -152,16 +165,27 @@ static int kbd_init(void)
 	}
 
 	/* TODO 1: request the keyboard I/O ports */
-	if (!request_region(I8042_STATUS_REG, 1, MODULE_NAME))
-		return -ENODEV;
+	if (!request_region(I8042_STATUS_REG, 1, MODULE_NAME)) {
+        	release_region(I8042_STATUS_REG, 1);
+        	return -ENODEV;
+		goto out_unregister;
+	}
 
-	if (!request_region(I8042_DATA_REG, 1, MODULE_NAME))
-		return -ENODEV;
-	
+        if (!request_region(I8042_DATA_REG, 1, MODULE_NAME)) {
+        	release_region(I8042_DATA_REG, 1);
+               	return -ENODEV;
+		goto out_unregister;
+	}
 
 	/* TODO 3: initialize spinlock */
 
 	/* TODO 2: Register IRQ handler for keyboard IRQ (IRQ 1). */
+     	err = request_irq(I8042_KBD_IRQ, my_handler, IRQF_SHARED,
+                       MODULE_NAME, &devs[0]);
+     	if (err < 0) {
+         	return err;
+		goto out_unregister;
+	}
 
 	cdev_init(&devs[0].cdev, &kbd_fops);
 	cdev_add(&devs[0].cdev, MKDEV(KBD_MAJOR, KBD_MINOR), 1);
@@ -183,10 +207,11 @@ static void kbd_exit(void)
 	cdev_del(&devs[0].cdev);
 
 	/* TODO 2: Free IRQ. */
+	free_irq (I8042_KBD_IRQ, &devs[0]);
 
 	/* TODO 1: release keyboard I/O ports */
-	release_region(I8042_STATUS_REG, 1);
-	release_region(I8042_DATA_REG, 1);
+        release_region(I8042_STATUS_REG, 1);
+        release_region(I8042_DATA_REG, 1);
 
 
 	unregister_chrdev_region(MKDEV(KBD_MAJOR, KBD_MINOR),
