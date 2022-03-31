@@ -83,7 +83,11 @@ static void put_char(struct kbd *data, char c)
 static bool get_char(char *c, struct kbd *data)
 {
 	/* TODO 4: get char from buffer; update count and get_idx */
-	return false;
+	*c = data->buf[data->get_idx];
+	data->get_idx = (data->get_idx + 1) % BUFFER_SIZE;
+	data->count--;
+
+	return true;
 }
 
 static void reset_buffer(struct kbd *data)
