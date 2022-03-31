@@ -29,6 +29,7 @@ MODULE_LICENSE("GPL");
 struct kbd {
 	struct cdev cdev;
 	/* TODO 3: add spinlock */
+	spinlock_t lock;
 	char buf[BUFFER_SIZE];
 	size_t put_idx, get_idx, count;
 } devs[1];
@@ -97,21 +98,40 @@ static inline u8 i8042_read_data(void)
 {
 	u8 val;
 	/* TODO 3: Read DATA register (8 bits). */
+	val = inb(I8042_DATA_REG);
 	return val;
 }
 
 /* TODO 2: implement interrupt handler */
 irqreturn_t my_handler(int irq_no, void *dev_id)
 {
-    	struct my_device_data *my_data = (struct my_device_data *) dev_id;
-	pr_info("GOT HERE!\n");
+    	struct kbd *my_data = (struct kbd *) dev_id;
+	u8 scancode;
+	int pressed;
+	int ch;
+	//pr_info("GOT HERE!\n");
 
 	/* TODO 3: read the scancode */
+	scancode = i8042_read_data();
+	pressed = is_key_press(scancode);
+
 	/* TODO 3: interpret the scancode */
+	ch = get_ascii(scancode);
+
 	/* TODO 3: display information about the keystrokes */
+	pr_info("IRQ %d: scancode=0x%x (%u) pressed=%d ch=%c\n",
+        	irq_no, scancode, scancode, pressed, ch);
+
 	/* TODO 3: store ASCII key to buffer */
     	/* if interrupt is not for this device (shared interrupts) */
         	/* return IRQ_NONE;*/
+	if (!pressed) {
+		return IRQ_NONE;
+	}
+
+	spin_lock(&my_data->lock);
+	put_char(my_data, ch);
+	spin_unlock(&my_data->lock);
 
     	/* clear interrupt-pending bit */
     	/* read from device or write to device*/
@@ -178,6 +198,7 @@ static int kbd_init(void)
 	}
 
 	/* TODO 3: initialize spinlock */
+	spin_lock_init(&devs[0].lock);
 
 	/* TODO 2: Register IRQ handler for keyboard IRQ (IRQ 1). */
      	err = request_irq(I8042_KBD_IRQ, my_handler, IRQF_SHARED,
