@@ -93,6 +93,9 @@ static bool get_char(char *c, struct kbd *data)
 static void reset_buffer(struct kbd *data)
 {
 	/* TODO 5: reset count, put_idx, get_idx */
+	data->count = 0;
+	data->put_idx = 0;
+	data->get_idx = 0;
 }
 
 /*
@@ -159,6 +162,11 @@ static int kbd_release(struct inode *inode, struct file *file)
 }
 
 /* TODO 5: add write operation and reset the buffer */
+static ssize_t kbd_write(struct file *file,  char __user *user_buffer,
+			size_t size, loff_t *offset)
+{
+	return 0;
+}
 
 static ssize_t kbd_read(struct file *file,  char __user *user_buffer,
 			size_t size, loff_t *offset)
