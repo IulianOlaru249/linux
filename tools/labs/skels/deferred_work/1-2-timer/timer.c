@@ -26,6 +26,9 @@ static void timer_handler(struct timer_list *tl)
 	pr_info("Got Here!\n");
 
 	/* TODO 2: rechedule timer */
+	current_jiffies = jiffies;
+	next_jiffies = jiffies + TIMER_TIMEOUT * HZ;
+	mod_timer(&timer, next_jiffies);
 }
 
 static int __init timer_init(void)
