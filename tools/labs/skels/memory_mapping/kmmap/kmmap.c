@@ -20,6 +20,7 @@
 #include <asm/uaccess.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/mm.h>
 
 #include "../test/mmap-test.h"
 
@@ -30,6 +31,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define MY_MAJOR	42
 /* how many pages do we actually kmalloc */
 #define NPAGES		16
+//#define PAGE_SHIFT      12
 
 /* character device basic structure */
 static struct cdev mmap_cdev;
@@ -74,12 +76,20 @@ static int my_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	int ret;
 	long length = vma->vm_end - vma->vm_start;
+	unsigned long pfn;
 
 	/* do not map more than we can */
 	if (length > NPAGES * PAGE_SIZE)
 		return -EIO;
 
 	/* TODO 1: map the whole physically contiguous area in one piece */
+	pfn = virt_to_phys(kmalloc_area) >> PAGE_SHIFT;
+
+	ret = remap_pfn_range(vma, vma->vm_start, pfn, length, vma->vm_page_prot);
+	if (ret < 0) {
+    		pr_err("could not map the address area\n");
+    		return -EIO;
+	}
 
 	return 0;
 }
@@ -112,6 +122,7 @@ static int my_seq_show(struct seq_file *seq, void *v)
 static int my_seq_open(struct inode *inode, struct file *file)
 {
 	/* TODO 3: Register the display function */
+	return 1;
 }
 
 static const struct proc_ops my_proc_ops = {
@@ -134,12 +145,28 @@ static int __init my_init(void)
 	}
 
 	/* TODO 1: allocate NPAGES+2 pages using kmalloc */
+	kmalloc_ptr = NULL;
+	kmalloc_ptr = kmalloc(PAGE_SIZE * (NPAGES + 2), GFP_KERNEL);
+	if (!kmalloc_ptr) {
+		pr_err("could not allocate memory\n");
+		goto out_no_chrdev;
+	}
 
 	/* TODO 1: round kmalloc_ptr to nearest page start address */
+ 	kmalloc_area = (char *)PAGE_ALIGN((int)kmalloc_ptr);
 
 	/* TODO 1: mark pages as reserved */
+	for(i = 0; i < (NPAGES + 2) * PAGE_SIZE; i += PAGE_SIZE)
+		SetPageReserved(virt_to_page(((unsigned long)kmalloc_area) + i));
 
 	/* TODO 1: write data in each page */
+	//0xaa, 0xbb, 0xcc, 0xdd
+	for(i = 0; i < NPAGES; i += 1) {
+		memset(kmalloc_area + i * PAGE_SIZE, 0xaa, PAGE_SIZE);
+		memset(kmalloc_area + i * PAGE_SIZE + 1 * sizeof(char), 0xbb, PAGE_SIZE);
+		memset(kmalloc_area + i * PAGE_SIZE + 2 * sizeof(char), 0xcc, PAGE_SIZE);
+		memset(kmalloc_area + i * PAGE_SIZE + 3 * sizeof(char), 0xdd, PAGE_SIZE);
+	}
 
 	/* Init device. */
 	cdev_init(&mmap_cdev, &mmap_fops);
@@ -168,6 +195,10 @@ static void __exit my_exit(void)
 	cdev_del(&mmap_cdev);
 
 	/* TODO 1: clear reservation on pages and free mem. */
+	for(i = 0; i < (NPAGES + 2) * PAGE_SIZE; i += PAGE_SIZE)
+		ClearPageReserved(virt_to_page(((unsigned long)kmalloc_area) + i));
+
+	kfree(kmalloc_ptr);
 
 	unregister_chrdev_region(MKDEV(MY_MAJOR, 0), 1);
 	/* TODO 3: remove proc entry */
