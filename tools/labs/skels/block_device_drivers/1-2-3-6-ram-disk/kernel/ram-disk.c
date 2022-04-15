@@ -67,6 +67,12 @@ static void my_block_transfer(struct my_block_dev *dev, sector_t sector,
 		return;
 
 	/* TODO 3: read/write to dev buffer depending on dir */
+	// Handle Write
+	if (dir)
+		memcpy(dev->data + offset, buffer, len);
+	// Handle Read
+	else
+		memcpy(buffer, dev->data + offset, len);
 }
 
 /* to transfer data using bio structures enable USE_BIO_TRANFER */
@@ -84,6 +90,12 @@ static blk_status_t my_block_request(struct blk_mq_hw_ctx *hctx,
 {
 	struct request *rq;
 	struct my_block_dev *dev = hctx->queue->queuedata;
+
+	size_t num_sector;
+	struct bio_vec bvec;
+	sector_t pos_sector;
+ 	struct req_iterator iter;
+	void *buffer;
 
 	/* TODO 2: get pointer to request */
 	rq = bd->rq;	
@@ -115,6 +127,21 @@ static blk_status_t my_block_request(struct blk_mq_hw_ctx *hctx,
 	/* TODO 6: process the request by calling my_xfer_request */
 #else
 	/* TODO 3: process the request by calling my_block_transfer */
+	/*
+	static void my_block_transfer(struct my_block_dev *dev, sector_t sector,
+		unsigned long len, char *buffer, int dir)
+	*/
+	pos_sector = blk_rq_pos(rq);
+	rq_for_each_segment(bvec, rq, iter) {
+		num_sector = blk_rq_cur_sectors(rq);
+		buffer = page_address(bvec.bv_page) + bvec.bv_offset;
+		//sbull_transfer(dev, pos_sector, num_sector,
+		//			buffer, rq_data_dir(req) == WRITE);
+		pos_sector += num_sector;
+	}
+	
+	my_block_transfer(&g_dev, blk_rq_pos(rq),
+		blk_rq_bytes(rq), buffer, rq_data_dir(rq));
 #endif
 
 	/* TODO 2: end request successfully */
