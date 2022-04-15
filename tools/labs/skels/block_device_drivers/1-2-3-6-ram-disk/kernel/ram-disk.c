@@ -31,7 +31,7 @@ MODULE_LICENSE("GPL");
 #define KERNEL_SECTOR_SIZE	512
 
 /* TODO 6: use bios for read/write requests */
-#define USE_BIO_TRANSFER	0
+#define USE_BIO_TRANSFER	1
 
 
 static struct my_block_dev {
@@ -79,9 +79,27 @@ static void my_block_transfer(struct my_block_dev *dev, sector_t sector,
 #if USE_BIO_TRANSFER == 1
 static void my_xfer_request(struct my_block_dev *dev, struct request *req)
 {
+	size_t num_sector;
+	struct bio_vec bvec;
+	sector_t pos_sector;
+ 	struct req_iterator iter;
+	void *buffer;
+
+
 	/* TODO 6: iterate segments */
 
 		/* TODO 6: copy bio data to device buffer */
+	pos_sector = blk_rq_pos(req);
+	rq_for_each_segment(bvec, req, iter) {
+		num_sector = blk_rq_cur_sectors(req);
+		buffer = page_address(bvec.bv_page) + bvec.bv_offset;
+
+		my_block_transfer(dev, blk_rq_pos(req),
+			blk_rq_bytes(req), buffer, rq_data_dir(req));
+
+		pos_sector += num_sector;
+	}
+
 }
 #endif
 
@@ -125,6 +143,7 @@ static blk_status_t my_block_request(struct blk_mq_hw_ctx *hctx,
 
 #if USE_BIO_TRANSFER == 1
 	/* TODO 6: process the request by calling my_xfer_request */
+	my_xfer_request(&g_dev, rq);
 #else
 	/* TODO 3: process the request by calling my_block_transfer */
 	/*
@@ -135,8 +154,6 @@ static blk_status_t my_block_request(struct blk_mq_hw_ctx *hctx,
 	rq_for_each_segment(bvec, rq, iter) {
 		num_sector = blk_rq_cur_sectors(rq);
 		buffer = page_address(bvec.bv_page) + bvec.bv_offset;
-		//sbull_transfer(dev, pos_sector, num_sector,
-		//			buffer, rq_data_dir(req) == WRITE);
 		pos_sector += num_sector;
 	}
 	
